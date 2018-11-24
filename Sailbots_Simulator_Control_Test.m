@@ -5,6 +5,8 @@
 %% Setup ros node
 %rosinit('localhost');
 
+base_index = -1;
+
 %% Move robot to position x = 20, then stop
 while true
     %% Subscribe to /gazebo/link_states
@@ -12,10 +14,21 @@ while true
     pause(1);
     gazebo_link_states_msg = receive(gazebo_link_states_sub, 10);
     
+    %% Get index of wamv::base_link
+    if base_index == -1
+        names = gazebo_link_states_msg.Name
+        for i = 1:numel(names)
+            if strcmp('wamv::base_link', cell2mat(names(i)))
+                base_index = i
+                break
+            end
+        end
+    end
+    
     %% Get current X position
-    %% /gazebo/link_states returns a cell with 55 names, poses and speeds. Index 52 is the base of boat
+    %% /gazebo/link_states returns a cell with 55 names, poses and speeds. 
     %% http://docs.ros.org/jade/api/gazebo_msgs/html/msg/LinkStates.html
-    current_x = gazebo_link_states_msg.Pose(52).Position.X
+    current_x = gazebo_link_states_msg.Pose(base_index).Position.X
 
     %% Setup publishing
     [left_thrust_pub, left_thrust_msg] = rospublisher('/left_thrust_cmd', 'std_msgs/Float32');
