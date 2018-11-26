@@ -55,9 +55,14 @@ while true
     az = twist.Angular.Z    
 
     %% Publish thrust values
-    left_thrust_msg.Data = 0;
-    right_thrust_msg.Data = 0;
-    lateral_thrust_msg.Data = -1;
+    F_x = 0;
+    F_y = 1;
+    M_cw = 0;
+    
+    [F_l, F_r, F_lat] = convert_net_force_moment_to_thrust(F_x, F_y, M_cw);
+    left_thrust_msg.Data = F_l;
+    right_thrust_msg.Data = F_r;
+    lateral_thrust_msg.Data = F_lat;
    
     send(left_thrust_pub, left_thrust_msg);
     send(right_thrust_pub, right_thrust_msg);
@@ -84,6 +89,12 @@ function [r, p, y] = convert_quaternion_to_euler(w, x, y, z)
     y = atan2(2 * (w*z + x*y), (1 - 2 * (y^2 + z^2)));
 end
     
-    
+%% Convert input moment and net force to thrusts
+function [F_l, F_r, F_lat] = convert_net_force_moment_to_thrust(F_x, F_y, M_cw)
+    width = 0.57135;
+    F_l = F_y/2 + M_cw/width;
+    F_r = F_y/2 - M_cw/width;
+    F_lat = F_x;
+end
 
 
