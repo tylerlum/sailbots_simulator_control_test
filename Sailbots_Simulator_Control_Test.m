@@ -5,72 +5,67 @@
 %% Start Date: Nov 22, 2018
 
 %% Setup ros node if not already started
-if not(robotics.ros.internal.Global.isNodeActive)
-    rosinit('localhost');
-end
+rosshutdown;
+rosinit('localhost');
 
-%% Setup subscriber before looping
+%% Setup subscriber and publishers before looping
 gazebo_link_states_sub = rossubscriber('/gazebo/link_states');
 pause(1);
 gazebo_link_states_msg = receive(gazebo_link_states_sub, 10);
+
+[left_thrust_pub, left_thrust_msg] = rospublisher('/left_thrust_cmd', 'std_msgs/Float32');
+[right_thrust_pub, right_thrust_msg] = rospublisher('/right_thrust_cmd', 'std_msgs/Float32');
+[lateral_thrust_pub, lateral_thrust_msg] = rospublisher('/lateral_thrust_cmd', 'std_msgs/Float32');
 
 %% Get index of base_link (only care about boat's position + orientation)
 names = gazebo_link_states_msg.Name;
 base_index = get_index(names, 'wamv::base_link');
 
-%% Setup publishers before looping
-[left_thrust_pub, left_thrust_msg] = rospublisher('/left_thrust_cmd', 'std_msgs/Float32');
-[right_thrust_pub, right_thrust_msg] = rospublisher('/right_thrust_cmd', 'std_msgs/Float32');
-[lateral_thrust_pub, lateral_thrust_msg] = rospublisher('/lateral_thrust_cmd', 'std_msgs/Float32');
-
-%% Move robot to position x = 20, then stop
+%% Repeatedly read state and send thrust commands
 while true
     %% Get current pose + twist
     gazebo_link_states_msg = receive(gazebo_link_states_sub, 10);  % 10s timeout
     
-    %% Example of how to get position, speed, etc.
+    %% Example of how to get position, speed, etc. (in world frame)
     pose = gazebo_link_states_msg.Pose(base_index);
     twist = gazebo_link_states_msg.Twist(base_index);
     
-    %% Position
+    % Position
     x = pose.Position.X;
     y = pose.Position.Y;
     z = pose.Position.Z;
     
-    %% Orientation quaternion
+    % Orientation quaternion
+    ow = pose.Orientation.W;
     ox = pose.Orientation.X;
     oy = pose.Orientation.Y;
     oz = pose.Orientation.Z;
-    ow = pose.Orientation.W;
     
-    %% Linear speed
+    % Quaternion to euler angles 
+    [r, p, y] = convert_quaternion_to_euler(ow, ox, oy, oz);
+    
+    % Linear speed
     vx = twist.Linear.X;
     vy = twist.Linear.Y;
     vz = twist.Linear.Z;
     
-    %% Angular speed
-    ax = twist.Angular.X;
-    ay = twist.Angular.Y;
-    az = twist.Angular.Z;    
+    % Angular speed
+    ax = twist.Angular.X
+    ay = twist.Angular.Y
+    az = twist.Angular.Z    
 
-    %% If current x is too low, keep moving forward
-    if x < 20 
-        speed = 2;
-    else
-        speed = 0;
-    end
-
-    %% Set thrust values
-    left_thrust_msg.Data = speed;
-    right_thrust_msg.Data = speed;
-    lateral_thrust_msg.Data = 0;
-    
     %% Publish thrust values
+    left_thrust_msg.Data = 0;
+    right_thrust_msg.Data = 0;
+    lateral_thrust_msg.Data = -1;
+   
     send(left_thrust_pub, left_thrust_msg);
     send(right_thrust_pub, right_thrust_msg);
     send(lateral_thrust_pub, lateral_thrust_msg);
 end
 
+%% Returns first index of name in all_names
+% If names not in all_names, returns -1
 function index = get_index(all_names, name)
     for i = 1:numel(all_names)
         if strcmp(name, cell2mat(all_names(i)))
@@ -78,5 +73,17 @@ function index = get_index(all_names, name)
             break;
         end
     end
+    i = -1;
 end
+
+%% Convert quaternion to euler angles (radians)
+% https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#Quaternion_to_Euler_Angles_Conversion
+function [r, p, y] = convert_quaternion_to_euler(w, x, y, z)
+    r = atan2(2 * (w*x + y*z), (1 - 2 * (x^2 + y^2)));
+    p = asin(2 * (w*y - z*x));
+    y = atan2(2 * (w*z + x*y), (1 - 2 * (y^2 + z^2)));
+end
+    
+    
+
 
