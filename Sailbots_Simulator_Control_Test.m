@@ -29,20 +29,40 @@ while true
     gazebo_link_states_msg = receive(gazebo_link_states_sub, 10);  % 10s timeout
     
     %% Example of how to get position, speed, etc.
-    current_pose = gazebo_link_states_msg.Pose(base_index);
-    current_twist = gazebo_link_states_msg.Twist(base_index);
-    current_x = current_pose.Position.X;
+    pose = gazebo_link_states_msg.Pose(base_index);
+    twist = gazebo_link_states_msg.Twist(base_index);
+    
+    %% Position
+    x = pose.Position.X;
+    y = pose.Position.Y;
+    z = pose.Position.Z;
+    
+    %% Orientation quaternion
+    ox = pose.Orientation.X;
+    oy = pose.Orientation.Y;
+    oz = pose.Orientation.Z;
+    ow = pose.Orientation.W;
+    
+    %% Linear speed
+    vx = twist.Linear.X;
+    vy = twist.Linear.Y;
+    vz = twist.Linear.Z;
+    
+    %% Angular speed
+    ax = twist.Angular.X;
+    ay = twist.Angular.Y;
+    az = twist.Angular.Z;    
 
     %% If current x is too low, keep moving forward
-    if current_x < 20
-        x_speed = 2;
+    if x < 20 
+        speed = 2;
     else
-        x_speed = 0;
+        speed = 0;
     end
 
     %% Set thrust values
-    left_thrust_msg.Data = x_speed;
-    right_thrust_msg.Data = x_speed;
+    left_thrust_msg.Data = speed;
+    right_thrust_msg.Data = speed;
     lateral_thrust_msg.Data = 0;
     
     %% Publish thrust values
