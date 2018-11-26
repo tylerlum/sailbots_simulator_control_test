@@ -7,21 +7,28 @@
 %% Setup ros node
 %rosinit('localhost');
 
-base_index = -1;
+%% Setup publisher and subscriber before looping
+gazebo_link_states_sub = rossubscriber('/gazebo/link_states');
+pause(1);
+gazebo_link_states_msg = receive(gazebo_link_states_sub, 10);
+
+names = gazebo_link_states_msg.Name;
+base_index = get_index(names, 'wamv::base_link');
+
+[left_thrust_pub, left_thrust_msg] = rospublisher('/left_thrust_cmd', 'std_msgs/Float32');
+[right_thrust_pub, right_thrust_msg] = rospublisher('/right_thrust_cmd', 'std_msgs/Float32');
+[lateral_thrust_pub, lateral_thrust_msg] = rospublisher('/lateral_thrust_cmd', 'std_msgs/Float32');
 
 %% Move robot to position x = 20, then stop
 while true
     %% Subscribe to /gazebo/link_states
-    gazebo_link_states_msg = get_ros_msg('/gazebo/link_states');
-    
-    %% Get index of wamv::base_link
-    if base_index == -1
-        names = gazebo_link_states_msg.Name;
-        base_index = get_index(names, 'wamv::base_link');
-    end
+    gazebo_link_states_msg = receive(gazebo_link_states_sub, 10);
     
     %% Get current X position
-    current_x = gazebo_link_states_msg.Pose(base_index).Position.X;
+    current_pose = gazebo_link_states_msg.Pose(base_index);
+    current_twist = gazebo_link_states_msg.Twist(base_index);
+
+    current_x = current_pose.Position.X;
 
     %% If current x is too low, keep moving forward
     if current_x < 20
@@ -30,14 +37,21 @@ while true
         x_speed = 0;
     end
 
-    %% Publish speeds
-    set_thrusts(x_speed, x_speed, 0);
+    %% Set thrust values
+    left_thrust_msg.Data = x_speed;
+    right_thrust_msg.Data = x_speed;
+    lateral_thrust_msg.Data = 0;
+    
+    %% Publish thrust values
+    send(left_thrust_pub, left_thrust_msg);
+    send(right_thrust_pub, right_thrust_msg);
+    send(lateral_thrust_pub, lateral_thrust_msg);
 end
 
 %% Functions
 function msg = get_ros_msg(topic)
     sub = rossubscriber(topic);
-    pause(1);
+    pause(0.2);
     msg = receive(sub, 10);
 end
 
