@@ -9,26 +9,26 @@ rosshutdown;
 rosinit('localhost');
 
 %% Setup subscriber and publishers before looping
-gazebo_link_states_sub = rossubscriber('/gazebo/link_states');
+gazebo_model_states_sub = rossubscriber('/gazebo/model_states');
 pause(1);
-gazebo_link_states_msg = receive(gazebo_link_states_sub, 10);
+gazebo_model_states_msg = receive(gazebo_model_states_sub, 10);
 
 [left_thrust_pub, left_thrust_msg] = rospublisher('/left_thrust_cmd', 'std_msgs/Float32');
 [right_thrust_pub, right_thrust_msg] = rospublisher('/right_thrust_cmd', 'std_msgs/Float32');
 [lateral_thrust_pub, lateral_thrust_msg] = rospublisher('/lateral_thrust_cmd', 'std_msgs/Float32');
 
-%% Get index of base_link (only care about boat's position + orientation)
-names = gazebo_link_states_msg.Name;
-base_index = get_index(names, 'wamv::base_link');
+%% Get index of boat (only care about boat's position + orientation)
+names = gazebo_model_states_msg.Name;
+boat_index = get_index(names, 'wamv')
 
 %% Repeatedly read state and send thrust commands
 while true
     %% Get current pose + twist
-    gazebo_link_states_msg = receive(gazebo_link_states_sub, 10);  % 10s timeout
+    gazebo_model_states_msg = receive(gazebo_model_states_sub, 10);  % 10s timeout
     
     %% Example of how to get position, speed, etc. (in world frame)
-    pose = gazebo_link_states_msg.Pose(base_index);
-    twist = gazebo_link_states_msg.Twist(base_index);
+    pose = gazebo_model_states_msg.Pose(boat_index);
+    twist = gazebo_model_states_msg.Twist(boat_index);
     
     % Position
     x = pose.Position.X;
